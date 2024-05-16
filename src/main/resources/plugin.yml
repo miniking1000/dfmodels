@@ -1,0 +1,11 @@
+name: dfmodels
+version: '${version}'
+main: org.pythonchik.dfmodels.Dfmodels
+api-version: '1.20'
+commands:
+  model:
+    description: "Ээээ @Trelony на вики."
+    permission: dfmodels.command
+permissions:
+  dfmodels.command:
+    default: true
