@@ -40,4 +40,9 @@ public final class Dfmodels extends JavaPlugin {
             config.save(new File(getDataFolder(), "config.yml"));
         } catch (Exception ignored) {}
     }
+    public static void saveConfig1(Dfmodels plugin) {
+        try {
+            config.save(new File(plugin.getDataFolder(), "config.yml"));
+        } catch (Exception ignored) {}
+    }
 }

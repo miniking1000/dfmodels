@@ -49,12 +49,15 @@ public class dfmodel implements CommandExecutor, Listener, TabCompleter {
                 Player player = ((Player) sender);
                 if (player.getInventory().getItemInOffHand().getType().equals(Material.WRITTEN_BOOK)) {
                     BookMeta bookmeta = (BookMeta) player.getInventory().getItemInOffHand().getItemMeta();
-                    if (bookmeta.hasTitle() && !(bookmeta.getTitle().indexOf(' ') == -1)){
-                        message.send(player, "Название книги не может содержать пробелы");
+                    if (bookmeta.hasTitle() && !Pattern.matches("^[a-zA-Zа-яА-ЯёЁ0-9]+$",bookmeta.getTitle())){
+                        message.send(player, "Название книги может содержать только буквы Английского и Русского алфавитов и цифры, другие символы не разрешены");
                         return true;
                     }
                     String cmd = "";
-
+                    if (!bookmeta.hasPages()){
+                        message.send(player,"В книге должна быть ссылка");
+                        return true;
+                    }
                     cmd = request(bookmeta.getPage(1));
                     if (cmd == null) {
                         message.send(player, "Ссылка неверна");
@@ -115,6 +118,7 @@ public class dfmodel implements CommandExecutor, Listener, TabCompleter {
                                     config.set(entity.getUniqueId() + ".x", entity.getLocation().getX());
                                     config.set(entity.getUniqueId() + ".y", entity.getLocation().getY());
                                     config.set(entity.getUniqueId() + ".z", entity.getLocation().getZ());
+                                    Dfmodels.saveConfig1(plugin);
                                     if (!player.isOp()) {
                                         delay.put(player, System.currentTimeMillis());
                                         ScheduledExecutorService service = Executors.newScheduledThreadPool(1);
@@ -145,9 +149,18 @@ public class dfmodel implements CommandExecutor, Listener, TabCompleter {
                 for (String uuid : config.getKeys(false)) {
                     if (args[1].equals(config.getString(uuid + ".name"))) {
                         for (Entity entity : plugin.getServer().getEntity(UUID.fromString(uuid)).getNearbyEntities(25, 25, 25)) {
-                            if (entity instanceof Player && ((Player) entity).equals((Player) sender)) {
+                            if (entity instanceof Player && (entity).equals(sender)) {
                                 plugin.getServer().dispatchCommand(plugin.getServer().getConsoleSender(), String.format("execute as %s at @s run teleport @s %s %s %s", uuid, args[2], args[3], args[4]));
-                                message.send(sender, "Модель успешно перемещена");
+                                if (!plugin.getServer().getEntity(UUID.fromString(uuid)).getNearbyEntities(25,25,25).contains(entity)){
+                                    message.send(sender, "Модель не может быть перемещена так далеко");
+                                    plugin.getServer().dispatchCommand(plugin.getServer().getConsoleSender(), String.format("execute as %s at @s run teleport @s %s %s %s", uuid, config.getString(uuid + ".x"), config.getString(uuid + ".y"), config.getString(uuid + ".z")));
+                                } else {
+                                    config.set(uuid + ".x", plugin.getServer().getEntity(UUID.fromString(uuid)).getLocation().getX());
+                                    config.set(uuid + ".y", plugin.getServer().getEntity(UUID.fromString(uuid)).getLocation().getY());
+                                    config.set(uuid + ".z", plugin.getServer().getEntity(UUID.fromString(uuid)).getLocation().getZ());
+                                    Dfmodels.saveConfig1(plugin);
+                                    message.send(sender, "Модель успешно перемещена");
+                                }
                                 return true;
                             }
                         }
@@ -185,15 +198,30 @@ public class dfmodel implements CommandExecutor, Listener, TabCompleter {
                     return true;
                 }
                 BookMeta bookMeta = (BookMeta) player.getInventory().getItemInOffHand().getItemMeta();
-                for (Entity entity : player.getWorld().getNearbyEntities(new BoundingBox(player.getLocation().getX() + 3, player.getLocation().getY() + 3, player.getLocation().getZ() + 3, player.getLocation().getX() - 3, player.getLocation().getY() - 3, player.getLocation().getZ() - 3))) {
-                    if (entity.getType() == EntityType.BLOCK_DISPLAY && entity.getVehicle() == null && entity.getCustomName() != null && entity.getCustomName().equals(bookMeta.getTitle())) {
-                        for (Entity passager : entity.getPassengers()) {
-                            passager.remove();
+                if (!player.isOp()) {
+                    for (Entity entity : player.getWorld().getNearbyEntities(new BoundingBox(player.getLocation().getX() + 3, player.getLocation().getY() + 3, player.getLocation().getZ() + 3, player.getLocation().getX() - 3, player.getLocation().getY() - 3, player.getLocation().getZ() - 3))) {
+                        if (entity.getType() == EntityType.BLOCK_DISPLAY && entity.getVehicle() == null && entity.getCustomName() != null && entity.getCustomName().equals(bookMeta.getTitle())) {
+                            for (Entity passager : entity.getPassengers()) {
+                                passager.remove();
+                            }
+                            config.set(String.valueOf(entity.getUniqueId()),null);
+                            entity.remove();
+                            message.send(sender,"Модель " + bookMeta.getTitle() + " была удалена");
+                            return true;
                         }
-                        config.set(String.valueOf(entity.getUniqueId()),null);
-                        entity.remove();
-                        message.send(sender,"Модель " + bookMeta.getTitle() + " была удалена");
-                        break;
+                    }
+                    message.send(player, "Модель не найдена, встаньте ближе.");
+                } else {
+                    for (String entry : config.getKeys(false)){ //uuid .name
+                        Entity entity =plugin.getServer().getEntity(UUID.fromString(entry));
+                        if (entity != null && entity.getName().equals(bookMeta.getTitle())){
+                            for (Entity passager : entity.getPassengers()) {
+                                passager.remove();
+                            }
+                            config.set(String.valueOf(entity.getUniqueId()),null);
+                            entity.remove();
+                            message.send(sender,"Модель " + bookMeta.getTitle() + " была удалена");
+                        }
                     }
                 }
             } else {
