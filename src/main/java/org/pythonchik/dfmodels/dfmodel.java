@@ -1,9 +1,5 @@
 package org.pythonchik.dfmodels;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.command.Command;
@@ -15,6 +11,7 @@ import org.bukkit.entity.*;
 import org.bukkit.event.Listener;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.BoundingBox;
 
 import java.io.BufferedReader;
@@ -33,12 +30,13 @@ public class dfmodel implements CommandExecutor, Listener, TabCompleter {
     Dfmodels plugin;
     FileConfiguration config;
     HashMap<Player, Long> delay = new HashMap<>();
-    private static Message message = Dfmodels.getMessage();
-    private final Logger logger = Bukkit.getPluginManager().getPlugin("Dfmodels").getLogger();
+    private static final Message message = Dfmodels.getMessage();
+    private final Logger logger;
 
     public dfmodel(Dfmodels plugin,FileConfiguration config) {
         this.plugin = plugin;
         this.config = config;
+        logger = plugin.getLogger();
     }
 
     @Override
@@ -111,25 +109,30 @@ public class dfmodel implements CommandExecutor, Listener, TabCompleter {
                                 player.getInventory().removeItem(new ItemStack(item.getType(), quantity));
                             }
                             plugin.getServer().dispatchCommand(plugin.getServer().getConsoleSender(), "execute at " + player.getName() + " run " + cmd.replaceFirst("/", "").replace("{Passengers", String.format("{CustomName:'{\"text\":\"%s\"}',Passengers", bookmeta.getTitle())));
-                            for (Entity entity : player.getWorld().getNearbyEntities(new BoundingBox(player.getLocation().getX() + 1, player.getLocation().getY() + 1, player.getLocation().getZ() + 1, player.getLocation().getX() - 1, player.getLocation().getY() - 1, player.getLocation().getZ() - 1))) {
-                                if (entity.getType() == EntityType.BLOCK_DISPLAY && entity.getVehicle() == null && entity.getCustomName() != null && entity.getCustomName().equals(bookmeta.getTitle())) {
-                                    config.set(entity.getUniqueId() + ".name", bookmeta.getTitle());
-                                    config.set(entity.getUniqueId() + ".creator", player.getName());
-                                    config.set(entity.getUniqueId() + ".x", entity.getLocation().getX());
-                                    config.set(entity.getUniqueId() + ".y", entity.getLocation().getY());
-                                    config.set(entity.getUniqueId() + ".z", entity.getLocation().getZ());
-                                    Dfmodels.saveConfig1(plugin);
-                                    if (!player.isOp()) {
-                                        delay.put(player, System.currentTimeMillis());
-                                        ScheduledExecutorService service = Executors.newScheduledThreadPool(1);
-                                        service.schedule(() -> {
-                                            delay.remove(player);
-                                        }, 10 * 60, TimeUnit.SECONDS);
-                                        service.shutdown();
-                                        break;
+                            new BukkitRunnable() {
+                                @Override
+                                public void run() {
+                                    for (Entity entity : player.getWorld().getNearbyEntities(new BoundingBox(player.getLocation().getX() + 3, player.getLocation().getY() + 3, player.getLocation().getZ() + 3, player.getLocation().getX() - 3, player.getLocation().getY() - 3, player.getLocation().getZ() - 3))) {
+                                        if (entity.getType() == EntityType.BLOCK_DISPLAY && entity.getVehicle() == null && entity.getCustomName() != null && entity.getCustomName().equals(bookmeta.getTitle())) {
+                                            config.set(entity.getUniqueId() + ".name", bookmeta.getTitle());
+                                            config.set(entity.getUniqueId() + ".creator", player.getName());
+                                            config.set(entity.getUniqueId() + ".x", entity.getLocation().getX());
+                                            config.set(entity.getUniqueId() + ".y", entity.getLocation().getY());
+                                            config.set(entity.getUniqueId() + ".z", entity.getLocation().getZ());
+                                            Dfmodels.saveConfig1(plugin);
+                                            if (!player.isOp()) {
+                                                delay.put(player, System.currentTimeMillis());
+                                                ScheduledExecutorService service = Executors.newScheduledThreadPool(1);
+                                                service.schedule(() -> {
+                                                    delay.remove(player);
+                                                }, 10 * 60, TimeUnit.SECONDS);
+                                                service.shutdown();
+                                                break;
+                                            }
+                                        }
                                     }
                                 }
-                            }
+                            }.runTaskLater(plugin,5L);
                         } else {
                             message.send(player, "Для использования команды надо подождать еще " + (((delay.get(player) + 10 * 60 * 1000) - System.currentTimeMillis()) / 1000) + "cек.");
                         }
@@ -146,20 +149,32 @@ public class dfmodel implements CommandExecutor, Listener, TabCompleter {
                     message.send(player, "Во второй руке надо держать подписанную книгу с ссылкой на первой странице. Прочитать подробнее можно на вики https://wiki.dreamfox.fun/");
                 }
             } else if (args[0].equals("pos") && args.length == 5) {
+                if (!(args[2].matches("((-|\\+)?[0-9]+(\\.[0-9]+)?)+") && args[3].matches("((-|\\+)?[0-9]+(\\.[0-9]+)?)+") && args[4].matches("((-|\\+)?[0-9]+(\\.[0-9]+)?)+"))) {
+                    message.send(sender,"Координаты не правильны, можно писать только абсолютные координаты (без ~)");
+                    return true;
+                }
                 for (String uuid : config.getKeys(false)) {
                     if (args[1].equals(config.getString(uuid + ".name"))) {
                         for (Entity entity : plugin.getServer().getEntity(UUID.fromString(uuid)).getNearbyEntities(25, 25, 25)) {
                             if (entity instanceof Player && (entity).equals(sender)) {
-                                plugin.getServer().dispatchCommand(plugin.getServer().getConsoleSender(), String.format("execute as %s at @s run teleport @s %s %s %s", uuid, args[2], args[3], args[4]));
-                                if (!plugin.getServer().getEntity(UUID.fromString(uuid)).getNearbyEntities(25,25,25).contains(entity)){
-                                    message.send(sender, "Модель не может быть перемещена так далеко");
-                                    plugin.getServer().dispatchCommand(plugin.getServer().getConsoleSender(), String.format("execute as %s at @s run teleport @s %s %s %s", uuid, config.getString(uuid + ".x"), config.getString(uuid + ".y"), config.getString(uuid + ".z")));
+                                //TODO fix errors
+                                //this will helpif (args[2].matches("((-|\\+)?[0-9]+(\\.[0-9]+)?)+") && args[3].matches("((-|\\+)?[0-9]+(\\.[0-9]+)?)+")) {
+                                if (Math.abs(config.getDouble(uuid + ".x") - Float.valueOf(args[2])) < 25 && Math.abs(config.getDouble(uuid + ".y") - Float.valueOf(args[3])) < 25 && Math.abs(config.getDouble(uuid + ".z") - Float.valueOf(args[4])) < 25) {
+                                    logger.info(String.format("execute as %s at @s run teleport @s %s %s %s", uuid, args[2], args[3], args[4]));
+                                    plugin.getServer().dispatchCommand(plugin.getServer().getConsoleSender(), String.format("execute as %s at @s run teleport @s %s %s %s", uuid, args[2], args[3], args[4]));
+                                    new BukkitRunnable() {
+                                        @Override
+                                        public void run() {
+                                            config.set(uuid + ".x", plugin.getServer().getEntity(UUID.fromString(uuid)).getLocation().getX());
+                                            config.set(uuid + ".y", plugin.getServer().getEntity(UUID.fromString(uuid)).getLocation().getY());
+                                            config.set(uuid + ".z", plugin.getServer().getEntity(UUID.fromString(uuid)).getLocation().getZ());
+                                            Dfmodels.saveConfig1(plugin);
+                                            message.send(sender, "Модель успешно перемещена");
+                                        }
+                                    }.runTaskLater(plugin,5);
                                 } else {
-                                    config.set(uuid + ".x", plugin.getServer().getEntity(UUID.fromString(uuid)).getLocation().getX());
-                                    config.set(uuid + ".y", plugin.getServer().getEntity(UUID.fromString(uuid)).getLocation().getY());
-                                    config.set(uuid + ".z", plugin.getServer().getEntity(UUID.fromString(uuid)).getLocation().getZ());
-                                    Dfmodels.saveConfig1(plugin);
-                                    message.send(sender, "Модель успешно перемещена");
+                                    message.send(sender, "Модель не может быть перемещена так далеко");
+                                    //plugin.getServer().dispatchCommand(plugin.getServer().getConsoleSender(), String.format("execute as %s at @s run teleport @s %s %s %s", uuid, config.getString(uuid + ".x"), config.getString(uuid + ".y"), config.getString(uuid + ".z")));
                                 }
                                 return true;
                             }

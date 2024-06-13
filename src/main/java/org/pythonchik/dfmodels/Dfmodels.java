@@ -6,12 +6,12 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
+import java.util.logging.Logger;
 
 public final class Dfmodels extends JavaPlugin {
     public static Message message;
     private static FileConfiguration config;
     public static Message getMessage(){return message;}
-    Plugin plugin = this;
 
     @Override
     public void onEnable() {
