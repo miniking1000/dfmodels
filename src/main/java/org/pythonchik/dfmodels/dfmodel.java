@@ -160,8 +160,7 @@ public class dfmodel implements CommandExecutor, Listener, TabCompleter {
                                 //TODO fix errors
                                 //this will helpif (args[2].matches("((-|\\+)?[0-9]+(\\.[0-9]+)?)+") && args[3].matches("((-|\\+)?[0-9]+(\\.[0-9]+)?)+")) {
                                 if (Math.abs(config.getDouble(uuid + ".x") - Float.valueOf(args[2])) < 25 && Math.abs(config.getDouble(uuid + ".y") - Float.valueOf(args[3])) < 25 && Math.abs(config.getDouble(uuid + ".z") - Float.valueOf(args[4])) < 25) {
-                                    logger.info(String.format("execute as %s at @s run teleport @s %s %s %s", uuid, args[2], args[3], args[4]));
-                                    plugin.getServer().dispatchCommand(plugin.getServer().getConsoleSender(), String.format("execute as %s at @s run teleport @s %s %s %s", uuid, args[2], args[3], args[4]));
+                                    plugin.getServer().dispatchCommand(plugin.getServer().getConsoleSender(), String.format("execute as %s at @s run minecraft:teleport @s %s %s %s", uuid, args[2], args[3], args[4]));
                                     new BukkitRunnable() {
                                         @Override
                                         public void run() {
@@ -174,7 +173,6 @@ public class dfmodel implements CommandExecutor, Listener, TabCompleter {
                                     }.runTaskLater(plugin,5);
                                 } else {
                                     message.send(sender, "Модель не может быть перемещена так далеко");
-                                    //plugin.getServer().dispatchCommand(plugin.getServer().getConsoleSender(), String.format("execute as %s at @s run teleport @s %s %s %s", uuid, config.getString(uuid + ".x"), config.getString(uuid + ".y"), config.getString(uuid + ".z")));
                                 }
                                 return true;
                             }
